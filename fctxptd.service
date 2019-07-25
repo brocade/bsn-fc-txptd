@@ -1,0 +1,12 @@
+[Unit]
+Description=Fiber Channel Transport Daemon
+After=multipathd.service
+Conflicts=shutdown.target
+
+[Service]
+Type=exec
+ExecStart=/sbin/fctxpd
+ExecReload=/sbin/fctxpd
+
+[Install]
+WantedBy=multi-user.target
