@@ -13,5 +13,8 @@ $(TARGET): $(OBJS)
 
 all::	$(TARGET)
 
+DESTDIR=/sbin
+.PHONY: install
+	cp $(TARGET) $(DESTDIR)
 clean::
 	$(RM) $(TARGET) $(OBJS)
