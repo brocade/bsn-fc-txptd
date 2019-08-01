@@ -3,7 +3,7 @@
 Name:	fc_txptd	
 Version:	0.1
 Release:	1%{?dist}
-Summary:	Fibrechannel transport daemon
+Summary:	Fibre channel transport daemon
 
 License:	GPLv2+
 URL:		https://github.com/brocade/bsn-fc-txptd/
@@ -11,6 +11,7 @@ Source:		https://github.com/brocade/bsn-fc-txptd/blob/master/%{name}-%{version}.
 
 BuildRequires:	gcc
 BuildRequires:	device-mapper-devel
+BuildRequires:	device-mapper-multipath-devel
 BuildRequires:	libaio-devel
 BuildRequires:	libudev-devel
 BuildRequires:	readline-devel
@@ -20,10 +21,10 @@ Requires:	device-mapper >= 1.2.78
 
 %description
 The purpose of this daemon is to add FC network intelligence in host and
-host intelligence in FC network. This daemon would interoperate with
-Brocade FC fabric in order to improve the response time of the MPIO failovers.
+host intelligence in FC network. This daemon would inter-operate with
+Brocade FC fabric in order to improve the response time of the MPIO failover.
 In future, it can also collect the congestion related details and perform
-workload analysis, and provide QOS at application level by interoperating with
+workload analysis, and provide QOS at application level by inter-operating with
 application performance profiling software.
 
 %prep
