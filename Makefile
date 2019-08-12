@@ -1,13 +1,29 @@
-include Makefile.inc
+
+ifndef SYSTEMD
+        ifeq ($(shell systemctl --version > /dev/null 2>&1 && echo 1), 1)
+                SYSTEMD = $(shell systemctl --version 2> /dev/null |  sed -n 's/systemd \([0-9]*\)/\1/p')
+        endif
+endif
+
+ifndef SYSTEMDPATH
+        SYSTEMDPATH=usr/lib
+endif
+
+prefix          =
+bindir          = $(exec_prefix)/usr/sbin
+unitdir         = $(prefix)/$(SYSTEMDPATH)/systemd/system
+
+RM              = rm -f
+INSTALL_PROGRAM = install
+
 
 SRCS	= fpin_main.c fpin_els.c fpin_dm.c
 
 OBJS	= $(SRCS:.c=.o)
 
-LIB	= -lpthread -ludev -ldevmapper -lmpathcmd -ldl
+LIB	= -lpthread -ludev -ldevmapper -lmpathcmd
 
 
-#CFLAGS	= -DFPIN_DEBUG -g
 CFLAGS += -g
 TARGET	= fctxpd
 

@@ -5,8 +5,8 @@ Conflicts=shutdown.target
 
 [Service]
 Type=exec
-ExecStart=/sbin/fctxpd
-ExecReload=/sbin/fctxpd
+ExecStart=/usr/sbin/fctxpd
+ExecReload=/usr/sbin/fctxpd
 
 [Install]
 WantedBy=multi-user.target
