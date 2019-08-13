@@ -1,20 +1,23 @@
-%global  _sysdir usr/lib
+
+%global commit          c195e67ee3b55ba8fa5e9829369b8f13977fbbbf
+%global shortcommit     %(c=%{commit}; echo ${c:0:7})
+%global snapshotdate    20190813
 
 Name:   fc_txptd
 Version:        0.1
-Release:        1%{?dist}
+Release:        1.%{snapshotdate}git%{shortcommit}%{?dist}
 Summary:        Fibrechannel transport daemon
 
 License:        GPLv2+
 URL:            https://github.com/brocade/bsn-fc-txptd/
-Source:         https://github.com/brocade/bsn-fc-txptd/blob/master/%{name}-%{version}.tar.gz
+Source:         %{url}/archive/%{commit}/%{name}-%{shortcommit}.tar.gz
 
 BuildRequires:  gcc
 BuildRequires:  device-mapper-devel
 BuildRequires:  systemd-devel
 BuildRequires:  libudev-devel
 BuildRequires:  udev
-Requires: device-mapper-multipath
+BuildRequires: device-mapper-multipath
 BuildRequires: systemd
 BuildRequires: device-mapper-multipath-devel
 Requires:       device-mapper >= 1.2.78
@@ -29,7 +32,7 @@ workload analysis, and provide QOS at application level by inter-operating with
 application performance profiling software.
 
 %prep
-%setup -q
+%autosetup -n %{name}-%{commit}
 
 %post
 %systemd_post fctxpd.service
@@ -58,5 +61,6 @@ application performance profiling software.
 -No functional changes,just Licenses
 -Spec file:Created LICENSES dir with the text of all used license
 -Added the license header in the corresponding source files
+
 *Fri Jul 26 2019  Muneendra <muneendra.kumar@broadcom.com> 0.1-1
 -Initial package for fedora
