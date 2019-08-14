@@ -32,7 +32,7 @@ workload analysis, and provide QOS at application level by inter-operating with
 application performance profiling software.
 
 %prep
-%autosetup -n %{name}-%{commit}
+%autosetup -n bsn-fc-txptd-%{commit}
 
 %post
 %systemd_post fctxpd.service
@@ -57,7 +57,7 @@ application performance profiling software.
 %license LICENSES/GPL-2.0
 
 %changelog
-*Mon Aug 12 2019  Muneendra <muneendra.kumar@broadcom.com> 0.1-1
+*Mon Aug 12 2019  Muneendra <muneendra.kumar@broadcom.com> 0.1-1.20190813gitc195e67
 -No functional changes,just Licenses
 -Spec file:Created LICENSES dir with the text of all used license
 -Added the license header in the corresponding source files
