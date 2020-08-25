@@ -53,6 +53,9 @@
 #define UUID_LEN		128
 #define FILE_PATH_LEN	576		// SYS_PATH_LEN + Filename
 #define DEV_STATUS_LEN	64
+#define FCH_EVT_LINKUP 0x2
+#define FCH_EVT_LINK_FPIN 0x501
+#define FCH_EVT_RSCN 0x5
 
 struct impacted_devs
 {
@@ -90,12 +93,19 @@ struct wwn_list
 	uint32_t host_num;
 	struct list_head impacted_ports_wwn_head;
 };
+/* Structure to store the marginal devices info */
+struct marginal_dev_list
+{
+	char dev_name[DEV_NAME_LEN];
+	uint32_t host_num;
+	struct list_head marginal_dev_list_head;
+};
 
 /* ELS frame Handling functions */
 int fpin_fetch_dm_lun_data(struct wwn_list *list,
 			struct list_head *dm_list_head,
 			struct list_head *impacted_dev_list_head, struct udev *udev);
-void fpin_dm_fail_path(struct list_head *dm_list_head,
+void fpin_dm_marginal_path(uint32_t host_num, struct list_head *dm_list_head,
 				struct list_head *impacted_dev_list_head);
 
 int fpin_populate_dm_lun(struct list_head *dm_list_head,
@@ -115,5 +125,7 @@ void fpin_free_dm(struct list_head *dm_head);
 /* WWN Related Functions */
 int fpin_els_wwn_exists(struct wwn_list *list, const char *port_wwn_buf);
 void fpin_els_free_wwn_list(struct wwn_list *list);
+void fpin_unset_marginal_dev(uint32_t host_num, struct list_head *tgt_head);
 
+extern struct list_head fpin_li_marginal_dev_list_head;
 #endif
