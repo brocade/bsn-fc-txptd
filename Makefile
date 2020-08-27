@@ -24,7 +24,7 @@ OBJS	= $(SRCS:.c=.o)
 LIB	= -lpthread -ludev -ldevmapper -lmpathcmd
 
 
-CFLAGS += -g
+CFLAGS += -g -DFPIN_DEBUG
 TARGET	= fctxpd
 
 $(TARGET): $(OBJS)

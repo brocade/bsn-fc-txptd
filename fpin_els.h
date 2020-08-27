@@ -11,10 +11,8 @@
 /* max ELS frame Size */
 #define FC_PAYLOAD_MAXLEN   2048
 #define SYS_PATH_LEN		512
-/* ELS Frame, TBD: Use FPIN ELS once standardized */
+
 #define ELS_CMD_FPIN 0x16
-#define ELS_CMD_MPD 0x82
-#define ELS_CMD_CJN 0x83
 
 #define MARGINAL_CHECKER_WAIT_TIME 30
 
@@ -35,11 +33,6 @@ struct els_marginal_list {
 	struct list_head els_frame;
 };
 
-struct marginal_dev_list {
-	char dev_sys_path[SYS_PATH_LEN];
-	time_t dev_log_time;
-	struct list_head dev_list_head;
-};
 
 /* --- FPIN --- */
 

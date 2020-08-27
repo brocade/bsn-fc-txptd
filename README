@@ -43,8 +43,26 @@ Steps performed during daemon execution:
 	point 4, is parsed to get the sd* and dm-* information. A list of sd* which
 	are to be failed is populated here. 
 
-7.	Finally, the list populated above is used to fail the path using multipath
-	libraries.
+7.	Finally, the list populated above is used to set the path to marginal
+	using multipath	libraries.
+
+8.	Once the link integrity issues are fixed ,user needs to do port toggling
+	i.e port disable and port enable to transition the marginal paths to normal.
+
+9.	On receving the LINKUP/RSCN events, the daemon will set the marginal paths associated
+	with host number to normal.
+
+10.	User can run the below command to check the status of a path
+		multipathd show paths format "%d %t %M" .
+
+	The sample o/p is below
+
+	dev dm_st  marginal_st
+	sda undef  normal
+	sdb active normal
+	sdc active marginal
+
+
 
 Steps to compile:
 Please install udev,pthread ,devmapper libraries before we start compiling.

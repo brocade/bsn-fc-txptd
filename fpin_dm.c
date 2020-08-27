@@ -20,8 +20,10 @@
 
 #include "fpin.h"
 
+
 pthread_cond_t fpin_li_marginal_dev_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t fpin_li_marginal_dev_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 /*
  * Function:
@@ -282,48 +284,6 @@ out:
         dm_task_destroy(dmt);
         return r;
 }
-/*
- * Function:
- * 	fpin_dm_get_active_path_count
- *
- * Inputs:
- * 	dm_status: The status string retrieved from device mapper for a particular
- * 		dm (mapth*).
- *
- * Returns:
- * 	No. of active paths in the DM.
- *
- * Description:
- * 	This function counts and returns the number of active paths in a particular
- * 	DM by parsing the status string recieved from DM. The string is of the below
- * 	format:
- * 		2 0 1 0 1 1 A 0 2 2 8:32 A 0 0 1 8:48 A 0 0 1
- */
-int fpin_dm_get_active_path_count(char *dm_status) {
-	char *ptr = NULL;
-	int count = 0;
-
-	while ((ptr = strchr(dm_status, ':')) != NULL) {
-		while((*ptr != '\0') && (!isspace(*ptr))) {
-			ptr++;
-		}
-
-		if (*ptr == '\0') {
-			return (count);
-		}
-
-		/* Skip white space */
-		ptr++;
-		FPIN_DLOG("Got status as %c\n", *ptr);
-		if (*ptr != 'F') {
-			count++;
-		}
-
-		dm_status = ptr;
-	}
-
-	return(count);
-}
 
 int send_packet(int fd, const char *buf)
 {
@@ -343,10 +303,139 @@ int recv_packet(int fd, char **buf, unsigned int timeout)
 	return 0;
 }
 
+/*
+ * Function:
+ * 	fpin_set_marginal_state
+ *
+ * Inputs:
+ * 	Cmd:cmd that needs to be passed to dm
+ * Description:
+ * 	This will set/unset marginal state of a device
+ */
+
+static int  fpin_set_marginal_state(char* cmd){
+	int ret = -1, fd = -1;
+	char *reply = NULL;
+
+	fd = mpath_connect();
+	if (fd < 0) {
+		FPIN_CLOG("Not any devices, mpath_connect failed with %d\n", fd);
+		return fd;
+	}
+
+	FPIN_DLOG("CMD %s\n", cmd);
+	if ((ret = send_packet(fd, cmd)) != 0) {
+		FPIN_ELOG("send_packet failed with %d for cmd %s\n", ret, cmd);
+		FPIN_ELOG("\nRecheck the path state by running"
+			 "cmd: multipathd show paths format \n");
+		goto error;
+	}
+
+	ret = recv_packet(fd, &reply, DEFAULT_REPLY_TIMEOUT);
+	if (ret < 0) {
+		if (ret == -ETIMEDOUT) {
+			FPIN_ELOG("timeout receiving packet for cmd %s\n", cmd);
+		} else {
+			FPIN_ELOG("error %d receiving packet for cmd %s \n",
+					ret, cmd);
+		}
+		FPIN_ELOG("\nRecheck the path state by running"
+			 "cmd: multipathd show paths format \n");
+	} else {
+		if (strncmp(reply,"ok\n", 3) == 0) {
+			FPIN_ILOG("Successfully set state %s\n",cmd);
+		} else if ((strncmp(reply, "fail\n", 5) == 0) ||
+				(strncmp(reply, "timeout\n", 8) == 0)) {
+			FPIN_ELOG("Unable to set  state %s, reason %s",cmd,
+					reply);
+			ret = -EINVAL;
+		}
+
+	}
+	error:
+	mpath_disconnect(fd);
+	return ret;
+
+}
 
 /*
  * Function:
- * 	fpin_dm_fail_path
+ * 	fpin_unset_marginal_dev
+ *
+ * Inputs:
+ * 	host_num:Host number
+ * 	dev_name:device name.
+ * Description:
+ * 	Adds the marginal devices into the list
+ */
+void
+fpin_unset_marginal_dev(uint32_t host_num, struct list_head *tgt_head) {
+	struct marginal_dev_list *tmp_marg = NULL;
+	struct list_head *current_node = NULL;
+	struct list_head *temp = NULL;
+	char cmd[CMD_LEN];
+	int ret = 0;
+
+	pthread_mutex_lock(&fpin_li_marginal_dev_mutex);
+	if (list_empty(tgt_head)) {
+		FPIN_ILOG("Marginal List is empty\n");
+	} else {
+		list_for_each_safe(current_node, temp, tgt_head) {
+			tmp_marg = list_entry(current_node,
+					struct marginal_dev_list,
+					marginal_dev_list_head);
+
+			FPIN_DLOG(" marginal dev: is %s %d\n", tmp_marg->dev_name, tmp_marg->host_num);
+			if (tmp_marg->host_num != host_num)
+				continue;
+			snprintf(cmd, CMD_LEN, "path %s unsetmarginal", tmp_marg->dev_name);
+			ret = fpin_set_marginal_state(cmd);
+			if (ret <0)
+				continue;
+			list_del(current_node);
+			free(tmp_marg);
+		}
+	}
+	pthread_mutex_unlock(&fpin_li_marginal_dev_mutex);
+
+}
+
+/*
+ * Function:
+ * 	fpin_add_marginal_dev_info
+ *
+ * Inputs:
+ * 	host_num:Host number
+ * 	dev_name:device name.
+ * Description:
+ * 	Adds the marginal devices into the list
+ */
+static void
+fpin_add_marginal_dev_info(uint32_t host_num, char *devname) {
+	struct marginal_dev_list *newdev = NULL;
+
+	newdev = (struct marginal_dev_list *) calloc(1,
+					sizeof(struct marginal_dev_list));
+	if (newdev != NULL) {
+		newdev->host_num = host_num;
+		strncpy(newdev->dev_name, devname, (DEV_NAME_LEN - 1));
+		FPIN_DLOG("\n%s hostno %d devname %s\n",__func__,
+					host_num, newdev->dev_name);
+		pthread_mutex_lock(&fpin_li_marginal_dev_mutex);
+		list_add_tail(&(newdev->marginal_dev_list_head),
+					&fpin_li_marginal_dev_list_head);
+		pthread_mutex_unlock(&fpin_li_marginal_dev_mutex);
+	} else {
+		FPIN_CLOG("\n Mem alloc failed.Failed to add marginal dev info"
+			" Unset the marginal state manually after recovery"
+			" for  hostno %d devname %s \n",
+				host_num, devname);
+	}
+}
+
+/*
+ * Function:
+ * 	fpin_dm_marginal_path
  *
  * Inputs:
  * 	dm_list_head:			List of all DMs in the host.
@@ -359,7 +448,7 @@ int recv_packet(int fd, char **buf, unsigned int timeout)
  * 	and fails the path only if there is at least one other active path present.
  */
 void
-fpin_dm_fail_path(struct list_head *dm_list_head,
+fpin_dm_marginal_path(uint32_t host_num, struct list_head *dm_list_head,
 			struct list_head *impacted_dev_list_head) {
 	struct impacted_devs *temp = NULL;
 	char *reply = NULL;
@@ -376,13 +465,6 @@ fpin_dm_fail_path(struct list_head *dm_list_head,
 		FPIN_ELOG("SD List is empty, not failing any sd\n");
 		return;
 	}
-
-	fd = mpath_connect();
-	if (fd < 0) {
-		FPIN_CLOG("Not any devices, mpath_connect failed with %d\n", fd);
-		return;
-	}
-
 	list_for_each_entry(temp, impacted_dev_list_head, dev_list_head) {
 		ret = fpin_fetch_dm_for_sd(dm_list_head,
 				temp->dev_serial_id, &impacted_dm);
@@ -395,46 +477,20 @@ fpin_dm_fail_path(struct list_head *dm_list_head,
 		memset(dm_status, '\0', DM_PARAMS_SIZE);
 		ret = dm_get_status(impacted_dm, dm_status);
 		if (!ret) {
-			ret = fpin_dm_get_active_path_count(dm_status);
-			if (ret > 1) {
-				/* 
-				 * Fail the impacted Path in DM
-				 */
-				FPIN_ILOG("Failing %s:%s\n", temp->dev_node, temp->dev_name);
-				snprintf(cmd, CMD_LEN, "fail path %s", temp->dev_name);
-				if ((ret = send_packet(fd, cmd)) != 0) {
-					FPIN_ELOG("send_packet failed with %d\n", ret);
-					continue;
-				}
-				FPIN_ELOG("CMD %s\n", cmd);
-				ret = recv_packet(fd, &reply, 100);
-				if (ret < 0) {
-					if (ret == -ETIMEDOUT) {
-						FPIN_ELOG("timeout receiving packet\n");
-					} else {
-						FPIN_ELOG("error %d receiving packet\n", ret);
-					}
-					return;
-				} else {
-					if (strncmp(reply,"ok\n", 3) == 0) {
-						FPIN_ILOG("Successfully failed %s:%s\n",
-							temp->dev_node, temp->dev_name);
-					} else if ((strncmp(reply, "fail\n", 5) == 0) ||
-							(strncmp(reply, "timeout\n", 8) == 0)) {
-						FPIN_CLOG("Unable to fail %s:%s, reason %s",
-							temp->dev_node, temp->dev_name, reply);
-					}
-					free(reply);
-				}
-			} else {
-				FPIN_ELOG("Not Failing %s, not enough Active paths\n",
-					temp->dev_name);
+			/*
+			 * set  the impacted Path in DM to marginal
+			 */
+			FPIN_ILOG("setting marginal state %s:%s\n",
+					temp->dev_node, temp->dev_name);
+			snprintf(cmd, CMD_LEN, "path %s setmarginal", temp->dev_name);
+			ret = fpin_set_marginal_state(cmd);
+			if (ret <0)
 				continue;
-			}
+			else
+				fpin_add_marginal_dev_info(host_num, temp->dev_name);
+
 		}
 	}
-	mpath_disconnect(fd);
-
 }
 
 void

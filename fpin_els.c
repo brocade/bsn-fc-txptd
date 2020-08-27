@@ -169,7 +169,7 @@ fpin_els_free_wwn_list(struct wwn_list *list) {
  *	fpin_els_extract_wwn
  *
  * Input:
- *	host_num				: The Host# of HBA port, where the ELS was received.
+ *	host_num: The Host# of HBA port, where the ELS was received.
  *	L.I Notification Struct	: The Link Integrity struct with impacted WWN list.
  * 	struct wwn_list *list	: The list to be populated with impacted WWN.
  *
@@ -252,19 +252,27 @@ fpin_process_els_frame(uint16_t host_num, char *fc_payload) {
 	els_cmd = *(uint32_t *)fc_payload;
 	FPIN_ILOG("Got CMD while processing as 0x%x\n", els_cmd);
 	switch(els_cmd) {
-		case ELS_CMD_FPIN:
-			fpin_req = (fpin_link_integrity_request_els_t *)fc_payload;
+	case ELS_CMD_FPIN:
+		fpin_req = (fpin_link_integrity_request_els_t *)fc_payload;
+		/*Check the type of fpin by checking the tag info*/
+		switch(ntohl(fpin_req->linkIntegrityDesc.header.tag)) {
+		case eFPIN_NOTIFICATION_DESCRIPTOR_LINK_INTEGRITY_TAG:
 			INIT_LIST_HEAD(&list_of_wwn.impacted_ports_wwn_head);
-
-			/* Get the WWNs recieved from HBA firmware through ELS frame */
+			/* Get the WWNs recieved from HBA firmware through
+			 * ELS frame
+			 */
 			count = fpin_els_extract_wwn(host_num,
-					&(fpin_req->linkIntegrityDesc), &list_of_wwn);
+					&(fpin_req->linkIntegrityDesc),
+					&list_of_wwn);
 			if (count <= 0) {
-				FPIN_ELOG("Could not find any WWNs, ret = %d\n", count);
+				FPIN_ELOG("Could not find any WWNs, ret = %d\n",
+							count);
 				return count;
 			}
 
-			/* Get the list of paths to be failed from WWNs aquired above */
+			/* Get the list of paths to be setmarginal from WWNs
+			 * aquired above
+			 */
 			INIT_LIST_HEAD(&dm_list_head);
 			INIT_LIST_HEAD(&impacted_dev_list_head);
 			udev = udev_new();
@@ -273,31 +281,44 @@ fpin_process_els_frame(uint16_t host_num, char *fc_payload) {
 				FPIN_ELOG("Can't create udev\n");
 				return(-1);
 			}
-
 			FPIN_DLOG("Got new udev Resource\n");
 			count = fpin_fetch_dm_lun_data(&list_of_wwn,
-					&dm_list_head, &impacted_dev_list_head, udev);
+					&dm_list_head, &impacted_dev_list_head,
+					udev);
 
 			udev_unref(udev);
 			if (count <= 0) {
-				FPIN_ELOG("Could not find any sd to fail, ret = %d\n", count);
+				FPIN_ELOG("Could not find any sd to fail =%d\n",
+							count);
 				fpin_els_free_wwn_list(&list_of_wwn);
 				return count;
 			}
 
-
 			/* Fail the paths using multipath daemon */
-			fpin_dm_fail_path(&dm_list_head, &impacted_dev_list_head);
-
+			fpin_dm_marginal_path(host_num, &dm_list_head,
+						&impacted_dev_list_head);
 			/* Free the WWNs list extracted from ELS recieved */
 			fpin_dm_free_dev(&impacted_dev_list_head);
 			fpin_free_dm(&dm_list_head);
 			fpin_els_free_wwn_list(&list_of_wwn);
 			break;
-
-		default:
-			FPIN_ELOG("Invalid command received: 0x%x\n", els_cmd);
+		case eFPIN_NOTIFICATION_DESCRIPTOR_CONGESTION_TAG:
+			FPIN_ELOG("Rcvd FPIN: Congestion not supported:\n");
 			break;
+		case eFPIN_NOTIFICATION_DESCRIPTOR_DELIVERY_TAG:
+			FPIN_ELOG("Rcvd FPIN: Delivery notification not supported\n");
+			break;
+		case eFPIN_NOTIFICATION_DESCRIPTOR_TRANS_DELAY_TAG:
+			FPIN_ELOG("Rcvd FPIN:Transmission delay not supported:\n");
+			break;
+		default:
+			break;
+		}
+		break;
+
+	default:
+		FPIN_ELOG("Invalid command received: 0x%x\n", els_cmd);
+		break;
 	}
 
 	return (count);
@@ -323,21 +344,17 @@ fpin_handle_els_frame(fpin_payload_t *fpin_payload) {
 	els_cmd = *(uint32_t *)fpin_payload->payload;
 	FPIN_ILOG("Got CMD in add as 0x%x\n", els_cmd);
 	switch(els_cmd) {
-		case ELS_CMD_MPD:
-		case ELS_CMD_FPIN:
-			/*Push the Payload to FPIN frame queue. */
-			ret = fpin_els_add_li_frame(fpin_payload);
-			if (ret != 0) {
-				FPIN_ELOG("Failed to process LI frame with error %d\n", ret);
-			}
-			break;
-
-		case ELS_CMD_CJN:
-			/*Push the Payload to CJN frame queue. */
-			break;
-		default:
-			FPIN_ELOG("Invalid command received: 0x%x\n", els_cmd);
-			break;
+	case ELS_CMD_FPIN:
+		/*Push the Payload to FPIN frame queue. */
+		ret = fpin_els_add_li_frame(fpin_payload);
+		if (ret != 0) {
+			FPIN_ELOG("Failed to process LI frame with error %d\n",
+					ret);
+		}
+		break;
+	default:
+		FPIN_ELOG("Invalid command received: 0x%x\n", els_cmd);
+		break;
 	}
 
 	return (ret);

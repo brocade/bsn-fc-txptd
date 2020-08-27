@@ -34,7 +34,7 @@
 
 
 struct list_head els_marginal_list_head;
-struct list_head fpin_li_marginal_list_head;
+struct list_head fpin_li_marginal_dev_list_head;
 static int fcm_fc_socket;
 #define DEF_RX_BUF_SIZE		4096
 
@@ -93,16 +93,20 @@ void fpin_fabric_notification_receiver()
 			FPIN_ELOG("too short (%zu) to be an FC event", ret);
 			continue;
 		}
-
 		memcpy(fpin_payload->payload, &(fc_event->event_data), fpin_payload_sz);
 		els_cmd = *(uint32_t *)fpin_payload->payload;
-		FPIN_ILOG("Got host no as %d, event 0x%x, len %d\n",
-				fc_event->host_no, els_cmd, fc_event->event_datalen);
+		FPIN_ILOG("Got host no as %d, event 0x%x, len %d evntnum %d evntcode %d\n",
+				fc_event->host_no, els_cmd, fc_event->event_datalen,
+				fc_event->event_num, fc_event->event_code);
 		fpin_payload->host_num = fc_event->host_no;
 		fpin_payload->length = fc_event->event_datalen;
+		if ((fc_event->event_code == FCH_EVT_LINKUP) ||
+			(fc_event->event_code == FCH_EVT_RSCN))
+			fpin_unset_marginal_dev(fc_event->host_no, &fpin_li_marginal_dev_list_head);
+		if (fc_event->event_code != FCH_EVT_LINK_FPIN)
+			continue;
 		fpin_handle_els_frame(fpin_payload);
 	}
-
 }
 
 /*
@@ -119,7 +123,7 @@ main(int argc, char *argv[])
 	setlogmask (LOG_UPTO (LOG_INFO));
 	openlog("FCTXPTD", LOG_PID, LOG_USER);
 	INIT_LIST_HEAD(&els_marginal_list_head);
-	INIT_LIST_HEAD(&fpin_li_marginal_list_head);
+	INIT_LIST_HEAD(&fpin_li_marginal_dev_list_head);
 
 	/*
 	 *	A thread to process notifications from FC fabric.
