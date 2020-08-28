@@ -1,10 +1,10 @@
 
-%global commit          c195e67ee3b55ba8fa5e9829369b8f13977fbbbf
+%global commit          ccbaf3a0cbadaaef727bcb53c1aeeeec543fa049
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
-%global snapshotdate    20190813
+%global snapshotdate    20200827
 
 Name:   fctxpd
-Version:        0.1
+Version:        0.2
 Release:        1.%{snapshotdate}git%{shortcommit}%{?dist}
 Summary:        Fibrechannel transport daemon
 
@@ -57,6 +57,16 @@ application performance profiling software.
 %license LICENSES/GPL-2.0
 
 %changelog
+* Thu Aug 27 2020  Muneendra <muneendra.kumar@broadcom.com> 0.2-1.20200827gitccbaf3a
+- Added additioanl FPIN checks
+- Updated the README
+
+* Mon Jul 27 2020 Fedora Release Engineering <releng@fedoraproject.org> - 0.1-3.20190813gitc195e67
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_33_Mass_Rebuild
+
+* Tue Jan 28 2020 Fedora Release Engineering <releng@fedoraproject.org> - 0.1-2.20190813gitc195e67
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_32_Mass_Rebuild
+
 *Mon Aug 12 2019  Muneendra <muneendra.kumar@broadcom.com> 0.1-1.20190813gitc195e67
 -No functional changes,just Licenses
 -Spec file:Created LICENSES dir with the text of all used license
