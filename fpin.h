@@ -62,6 +62,7 @@ struct impacted_devs
 	char dev_node[DEV_NAME_LEN];
 	char dev_name[DEV_NAME_LEN];
 	char dev_serial_id[UUID_LEN];
+	char p_wwn[WWN_LEN];
 	struct list_head dev_list_head;
 };
 
@@ -75,6 +76,7 @@ struct dm_devs
 struct targets
 {
 	char target[TGT_NAME_LEN];
+	char p_wwn[WWN_LEN];
 	struct list_head target_head;
 };
 
@@ -113,8 +115,8 @@ int fpin_populate_dm_lun(struct list_head *dm_list_head,
 			struct udev *udev, struct list_head *target_head);
 
 /* Target Related Functions */
-int fpin_dm_insert_target(struct list_head *tgt_head, const char *target);
-int fpin_dm_find_target(struct list_head *tgt_head, const char *target);
+int fpin_dm_insert_target(struct list_head *tgt_head, const char *target, const char *port_wwn);
+int fpin_dm_find_target(struct list_head *tgt_head, const char *target, char *port_wwn);
 void fpin_dm_display_target(struct list_head *tgt_head);
 void fpin_dm_free_target(struct list_head *tgt_head);
 int fpin_dm_populate_target(struct wwn_list *list,
